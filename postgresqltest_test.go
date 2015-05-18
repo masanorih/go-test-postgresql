@@ -16,9 +16,9 @@ func TestBasic(t *testing.T) {
 	}
 	defer postgresql.Stop()
 
-	dsn := postgresql.Datasource("test", "", "", 0, "", "")
+	dsn := postgresql.Datasource("test", "", "", 15432, "", "")
 
-	wantdsn := "sslmode=disable port=0 dbname=test"
+	wantdsn := "sslmode=disable port=15432 dbname=test"
 
 	if dsn != wantdsn {
 		t.Errorf("DSN does not match expected (got '%s', want '%s')", dsn, wantdsn)

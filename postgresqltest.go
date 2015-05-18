@@ -212,6 +212,7 @@ func (m *TestPostgreSQL) Start() error {
 		for port := BasePort; port < BasePort+100; port++ {
 			err := m.tryStart(port)
 			if err == nil {
+				config.Port = port
 				return nil
 			}
 		}
@@ -310,6 +311,11 @@ func (m *TestPostgreSQL) Datasource(dbname string, user string, pass string, por
 
 	if sslmode == "" {
 		sslmode = "disable"
+	}
+
+	config := m.Config
+	if port <= 0 {
+		port = config.Port
 	}
 
 	dsn := fmt.Sprintf("sslmode=%s ", sslmode)

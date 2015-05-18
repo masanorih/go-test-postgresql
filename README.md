@@ -42,9 +42,9 @@ field on the struct:
 
 config := postgresqltest.NewConfig()
 config.SkipNetworking = false
-config.Port = 13306
+config.Port = 15432
 
-// Starts postgresql listening on port 5432
+// Starts postgresql listening on port 15432
 postgresql, _ := postgresqltest.NewPostgreSQL(config)
 ```
 
