@@ -5,11 +5,18 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"runtime"
+	"os"
 
 	_ "github.com/lib/pq"
 )
 
 func TestBasic(t *testing.T) {
+	if runtime.GOOS == "freebsd" {
+		os.Setenv("LANG", "C")
+		os.Setenv("LC_CTYPE", "C")
+	}
+
 	postgresql, err := NewPostgreSQL(NewConfig())
 	if err != nil {
 		t.Errorf("Failed to start postgresql: %s", err)
@@ -36,7 +43,13 @@ func TestBasic(t *testing.T) {
 	if err != nil {
 		t.Errorf("Failed to read log: %s", err)
 	}
-	if strings.Index(string(buf), "ready to accept connections") < 0 {
+	var readystr string
+	if runtime.GOOS == "freebsd" {
+		readystr = "ending log output to stderr"
+	} else {
+		readystr = "ready to accept connections"
+	}
+	if strings.Index(string(buf), readystr) < 0 {
 		t.Errorf("Could not find 'ready to accept connections' in log: %s", buf)
 	}
 }

@@ -382,7 +382,7 @@ func findProgram(prog string) (string, error) {
 			}
 		}
 	}
-	return "", fmt.Errorf("error: *** could not find file ***\n")
+	return "", fmt.Errorf("error: *** could not find file ***\n%s\n", prog)
 }
 
 func isDir(path string) bool {
