@@ -286,6 +286,7 @@ func (m *TestPostgreSQL) tryStart(port int) error {
 		dsn := m.Datasource("template1", "", "", port, config.TmpDir, "")
 		db, err = sql.Open("postgres", dsn)
 		if err == nil {
+			defer db.Close()
 			var id int
 			row := db.QueryRow("SELECT 1")
 			err = row.Scan(&id)
