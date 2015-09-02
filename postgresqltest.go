@@ -248,26 +248,10 @@ func (m *TestPostgreSQL) tryStart(port int) error {
 
 	m.Command = cmd
 
-	c := make(chan bool)
-	go func() {
-		cmd.Run()
-		c <- true
-	}()
-
-	for {
-		if cmd.Process != nil {
-			if _, err = os.FindProcess(cmd.Process.Pid); err == nil {
-				break
-			}
-		}
-
-		select {
-		case <-c:
-			// Fuck, we exited
-			return errors.New("error: Failed to launch postgresql")
-		default:
-			time.Sleep(100 * time.Millisecond)
-		}
+	// postmaster should be running background so this does not work
+	err = cmd.Start()
+	if err != nil {
+		return errors.New("error: Failed to launch postgresql")
 	}
 
 	// Wait until we can connect to the database
