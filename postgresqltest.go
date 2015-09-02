@@ -243,19 +243,10 @@ func (m *TestPostgreSQL) tryStart(port int) error {
 		Setpgid: true,
 	}
 
-	stdoutpipe, err := cmd.StdoutPipe()
-	if err != nil {
-		return err
-	}
-	stderrpipe, err := cmd.StderrPipe()
-	if err != nil {
-		return err
-	}
+	cmd.Stdout = file
+	cmd.Stderr = file
 
 	m.Command = cmd
-
-	go io.Copy(file, stdoutpipe)
-	go io.Copy(file, stderrpipe)
 
 	c := make(chan bool)
 	go func() {

@@ -41,7 +41,6 @@ field on the struct:
 ```go
 
 config := postgresqltest.NewConfig()
-config.SkipNetworking = false
 config.Port = 15432
 
 // Starts postgresql listening on port 15432
