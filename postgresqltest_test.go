@@ -2,11 +2,11 @@ package postgresqltest
 
 import (
 	"database/sql"
+	"fmt"
+	"os"
+	"runtime"
 	"strings"
 	"testing"
-	"time"
-	"runtime"
-	"os"
 
 	_ "github.com/lib/pq"
 )
@@ -19,25 +19,34 @@ func TestBasic(t *testing.T) {
 
 	postgresql, err := NewPostgreSQL(NewConfig())
 	if err != nil {
-		t.Errorf("Failed to start postgresql: %s", err)
+		t.Fatalf("Failed to start postgresql: %s", err)
 	}
 	defer postgresql.Stop()
 
-	dsn := postgresql.Datasource("test", "", "", 15432, "", "")
-
-	wantdsn := "sslmode=disable port=15432 dbname=test"
-
+	config := postgresql.Config
+	dsn := postgresql.Datasource("test", "", "", config.Port, config.TmpDir, "")
+	wantdsn := fmt.Sprintf("sslmode=disable port=%d host=%s dbname=test",
+		config.Port, config.TmpDir)
 	if dsn != wantdsn {
-		t.Errorf("DSN does not match expected (got '%s', want '%s')", dsn, wantdsn)
+		t.Fatalf("DSN does not match expected (got '%s', want '%s')",
+			dsn, wantdsn)
 	}
-
-	_, err = sql.Open("postgres", dsn)
+	err = postgresql.CreateDB("test")
 	if err != nil {
-		t.Errorf("Failed to connect to database: %s", err)
+		t.Fatalf("Failed to create database: %v", err)
 	}
-
-	// Got to wait for a bit till the log gets anything in it
-	time.Sleep(2 * time.Second)
+	db, err := sql.Open("postgres", dsn)
+	if err != nil {
+		t.Fatalf("Failed to connect to database: %v", err)
+	}
+	dbResult := 0
+	err = db.QueryRow("select 1").Scan(&dbResult)
+	if err != nil {
+		t.Errorf("Failed to 'select 1': %v", err)
+	}
+	if dbResult != 1 {
+		t.Errorf("DBResult is not 1. %v", err)
+	}
 
 	buf, err := postgresql.ReadLog()
 	if err != nil {

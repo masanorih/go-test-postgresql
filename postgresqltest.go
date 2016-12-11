@@ -5,10 +5,10 @@ package postgresqltest
 
  % cd /tmp
  % mkdir -p _pgsql/tmp
- % /usr/lib/postgresql/9.3/bin/initdb -A trust -D _pgsql/data
- % /usr/lib/postgresql/9.3/bin/postmaster -p 15432
+ % /usr/lib/postgresql/9.x/bin/initdb -A trust -D _pgsql/data
+ % /usr/lib/postgresql/9.x/bin/postmaster -p 15432
      -D /tmp/_pgsql/data -k /tmp/_pgsql/tmp
- # then you can connect via unix domain socket
+ # then you can connect via unix domain socket # or TCP
  % psql --port 15432 --host /tmp/_pgsql/tmp template1
 */
 
@@ -46,6 +46,7 @@ type PostgreSQLConfig struct {
 	TmpDir         string
 	InitDB         string
 	InitDBArgs     string
+	CreateDB       string
 	Postmaster     string
 	PostmasterArgs string
 	AutoStart      int
@@ -64,7 +65,7 @@ func NewConfig() *PostgreSQLConfig {
 	return &PostgreSQLConfig{
 		AutoStart:      2,
 		InitDBArgs:     "-A trust",
-		PostmasterArgs: "-h 127.0.0.1",
+		PostmasterArgs: "-h127.0.0.1",
 	}
 }
 
@@ -118,7 +119,6 @@ func NewPostgreSQL(config *PostgreSQLConfig) (*TestPostgreSQL, error) {
 	if config.TmpDir == "" {
 		config.TmpDir = filepath.Join(config.BaseDir, "tmp")
 	}
-
 	if config.InitDB == "" {
 		prog, err := findProgram("initdb")
 		if err != nil {
@@ -126,13 +126,18 @@ func NewPostgreSQL(config *PostgreSQLConfig) (*TestPostgreSQL, error) {
 		}
 		config.InitDB = prog
 	}
-
 	if config.Postmaster == "" {
 		prog, err := findProgram("postmaster")
 		if err != nil {
 			return nil, fmt.Errorf("error: Could not find postmaster: %s", err)
 		}
 		config.Postmaster = prog
+	}
+	if config.CreateDB == "" {
+		prog, err := findProgram("createdb")
+		if err == nil {
+			config.CreateDB = prog
+		}
 	}
 
 	postgresql := &TestPostgreSQL{
@@ -141,19 +146,16 @@ func NewPostgreSQL(config *PostgreSQLConfig) (*TestPostgreSQL, error) {
 		guards,
 		"",
 	}
-
 	if config.AutoStart > 0 {
 		if config.AutoStart > 1 {
 			if err := postgresql.Setup(); err != nil {
 				return nil, err
 			}
 		}
-
 		if err := postgresql.Start(); err != nil {
 			return nil, err
 		}
 	}
-
 	return postgresql, nil
 }
 
@@ -167,6 +169,28 @@ func (m *TestPostgreSQL) AssertNotRunning() error {
 		if !os.IsNotExist(err) {
 			return err
 		}
+	}
+	return nil
+}
+
+// CreateDB runs command createdb
+func (m *TestPostgreSQL) CreateDB(DBName string) error {
+	config := m.Config
+	// createdb
+	cmd := exec.Command(
+		config.CreateDB,
+		//config.PostmasterArgs,
+		"--port",
+		strconv.Itoa(config.Port),
+		"--host",
+		config.TmpDir,
+		//"-h",
+		//"127.0.0.1",
+		DBName,
+	)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("error: *** create failed ***\n%s\n", out)
 	}
 	return nil
 }
@@ -242,10 +266,8 @@ func (m *TestPostgreSQL) tryStart(port int) error {
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Setpgid: true,
 	}
-
 	cmd.Stdout = file
 	cmd.Stderr = file
-
 	m.Command = cmd
 
 	// postmaster should be running background so this does not work
@@ -255,8 +277,9 @@ func (m *TestPostgreSQL) tryStart(port int) error {
 	}
 
 	// Wait until we can connect to the database
-	timeout := time.Now().Add(30 * time.Second)
+	timeout := time.Now().Add(10 * time.Second)
 	var db *sql.DB
+	ok := false
 	for time.Now().Before(timeout) {
 		dsn := m.Datasource("template1", "", "", port, config.TmpDir, "")
 		db, err = sql.Open("postgres", dsn)
@@ -265,18 +288,17 @@ func (m *TestPostgreSQL) tryStart(port int) error {
 			var id int
 			row := db.QueryRow("SELECT 1")
 			err = row.Scan(&id)
-			if err == nil {
+			if err == nil && id == 1 {
+				ok = true
 				break
 			}
 		}
 		time.Sleep(1 * time.Second)
 	}
-
-	if db == nil {
-		return errors.New("error: Could not connect to database. Server failed to start?")
+	if ok {
+		return nil
 	}
-
-	return nil
+	return errors.New("error: failed to tryStart")
 }
 
 // Datasource creates the appropriate Datasource string that can be passed

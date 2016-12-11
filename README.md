@@ -25,7 +25,11 @@ if err != nil {
 }
 defer postgresql.Stop()
 
-db, err := sql.Open("postgres", postgresql.Datasource("test", "", "", 0))
+config := postgresql.Config
+port := config.Port
+host := config.TmpDir
+dsn := postgresql.Datasource("template1", "", "", port, host, "")
+db, err := sql.Open("postgres", dsn)
 // Now use db, which is connected to a postgresql db
 ```
 
