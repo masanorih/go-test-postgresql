@@ -47,6 +47,7 @@ type PostgreSQLConfig struct {
 	InitDB         string
 	InitDBArgs     string
 	CreateDB       string
+	Psql           string
 	Postmaster     string
 	PostmasterArgs string
 	AutoStart      int
@@ -139,6 +140,12 @@ func NewPostgreSQL(config *PostgreSQLConfig) (*TestPostgreSQL, error) {
 			config.CreateDB = prog
 		}
 	}
+	if config.Psql == "" {
+		prog, err := findProgram("psql")
+		if err == nil {
+			config.Psql = prog
+		}
+	}
 
 	postgresql := &TestPostgreSQL{
 		config,
@@ -173,26 +180,42 @@ func (m *TestPostgreSQL) AssertNotRunning() error {
 	return nil
 }
 
-// CreateDB runs command createdb
+// CreateDB runs command 'createdb'
 func (m *TestPostgreSQL) CreateDB(DBName string) error {
 	config := m.Config
 	// createdb
 	cmd := exec.Command(
 		config.CreateDB,
-		//config.PostmasterArgs,
 		"--port",
 		strconv.Itoa(config.Port),
 		"--host",
 		config.TmpDir,
-		//"-h",
-		//"127.0.0.1",
 		DBName,
 	)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("error: *** create failed ***\n%s\n", out)
+		return fmt.Errorf("error: *** createdb failed ***\n%s\n", out)
 	}
 	return nil
+}
+
+// Psql runs command 'psql'
+func (m *TestPostgreSQL) Psql(arg ...string) (string, error) {
+	config := m.Config
+	sl := []string{
+		"--port",
+		strconv.Itoa(config.Port),
+		"--host",
+		config.TmpDir,
+	}
+	sl = append(sl, arg...)
+	// createdb
+	cmd := exec.Command(config.Psql, sl...)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("error: *** psql failed ***\n%s\n", out)
+	}
+	return string(out), nil
 }
 
 // Setup sets up all the files and directories needed to start postgresql

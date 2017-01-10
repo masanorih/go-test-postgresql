@@ -35,6 +35,10 @@ func TestBasic(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create database: %v", err)
 	}
+	_, err = postgresql.Psql("-l")
+	if err != nil {
+		t.Fatalf("Failed to psql -l: %v", err)
+	}
 	db, err := sql.Open("postgres", dsn)
 	if err != nil {
 		t.Fatalf("Failed to connect to database: %v", err)
